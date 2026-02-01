@@ -1,0 +1,77 @@
+# Risk Register - EU AI Act Compliance
+version: "1.0"
+last_updated: "2026-01-15"
+assessor: "Compliance Team"
+
+risks:
+  - id: RISK-001
+    category: bias
+    title: Demographic Bias in Credit Decisions
+    description: Model predictions may vary unfairly across protected characteristics including age, gender, and ethnicity
+    likelihood: medium
+    impact: high
+    mitigation: |
+      - Implemented fairness constraints during training
+      - Regular monthly bias audits across demographic groups
+      - Automated alerts when disparate impact ratio exceeds 0.8
+      - Quarterly third-party fairness assessments
+    status: mitigated
+    owner: ML Fairness Team
+    review_date: "2026-04-15"
+
+  - id: RISK-002
+    category: transparency
+    title: Lack of Decision Explainability
+    description: Complex model architecture may make individual decisions difficult to explain to affected persons
+    likelihood: high
+    impact: medium
+    mitigation: |
+      - Integrated SHAP explanations for every prediction
+      - Plain-language explanation generator for customer communications
+      - Feature importance dashboard for compliance review
+    status: mitigated
+    owner: ML Engineering
+    review_date: "2026-03-01"
+
+  - id: RISK-003
+    category: data_quality
+    title: Training Data Staleness
+    description: Model trained on historical data may not reflect current economic conditions
+    likelihood: medium
+    impact: medium
+    mitigation: |
+      - Automated data drift detection pipeline
+      - Monthly model performance monitoring
+      - Quarterly retraining schedule with fresh data
+    status: mitigated
+    owner: Data Engineering
+    review_date: "2026-02-28"
+
+  - id: RISK-004
+    category: security
+    title: Adversarial Input Manipulation
+    description: Bad actors may attempt to manipulate inputs to achieve favorable credit decisions
+    likelihood: low
+    impact: high
+    mitigation: |
+      - Input validation and anomaly detection
+      - Rate limiting on prediction requests
+      - Audit logging of all decisions
+      - Regular penetration testing
+    status: mitigated
+    owner: Security Team
+    review_date: "2026-06-01"
+
+  - id: RISK-005
+    category: human_oversight
+    title: Insufficient Human Review Capacity
+    description: Volume of decisions may exceed human review capacity during peak periods
+    likelihood: medium
+    impact: medium
+    mitigation: |
+      - Tiered review system based on risk scores
+      - Additional trained reviewers on standby
+      - Automatic queuing during high-volume periods
+    status: mitigated
+    owner: Operations
+    review_date: "2026-03-15"

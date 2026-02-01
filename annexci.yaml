@@ -1,0 +1,16 @@
+# AnnexCI Configuration
+version: "1.0"
+model:
+  id: credit-scoring-v2
+  name: Credit Scoring Model
+  version: "2.1.0"
+  
+compliance:
+  framework: eu-ai-act
+  risk_category: high-risk
+  
+documentation:
+  risk_register: compliance/RISK_REGISTER.yaml
+  data_card: compliance/DATA_CARD.md
+  model_card: compliance/MODEL_CARD.md
+  human_oversight: compliance/HUMAN_OVERSIGHT.md
