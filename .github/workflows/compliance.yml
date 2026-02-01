@@ -1,0 +1,185 @@
+# AnnexCI EU AI Act Compliance Pipeline
+# This workflow demonstrates compliance gates in CI/CD
+
+name: EU AI Act Compliance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ============================================================================
+  # Stage 1: Technical Compliance Scan
+  # ============================================================================
+  compliance-scan:
+    name: 🔍 Compliance Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install Dependencies
+        run: pip install click rich pyyaml requests
+
+      - name: 🔍 Check Compliance Documentation
+        id: scan
+        run: |
+          echo "## 🔍 Compliance Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          DOCS_DIR=".annexci/compliance-docs"
+          
+          if [ ! -d "$DOCS_DIR" ]; then
+            echo "❌ **No compliance documentation found!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`annexci init\` and \`annexci scan --fix\` to generate documentation." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "### Annex IV Documentation Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Document | Requirement | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          PASS=true
+          
+          check_doc() {
+            local file=$1
+            local req=$2
+            local name=$3
+            
+            if [ -f "$DOCS_DIR/$file" ]; then
+              LINES=$(wc -l < "$DOCS_DIR/$file")
+              if [ "$LINES" -gt 5 ]; then
+                echo "| $name | $req | ✅ Complete |" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "| $name | $req | ⚠️ Template Only |" >> $GITHUB_STEP_SUMMARY
+                PASS=false
+              fi
+            else
+              echo "| $name | $req | ❌ Missing |" >> $GITHUB_STEP_SUMMARY
+              PASS=false
+            fi
+          }
+          
+          check_doc "system-description.md" "IV.1.a" "System Description"
+          check_doc "intended-purpose.md" "IV.1.b" "Intended Purpose"
+          check_doc "risk-register.yaml" "IV.2" "Risk Assessment"
+          check_doc "data-governance.md" "IV.3" "Data Governance"
+          check_doc "human-oversight.md" "IV.4" "Human Oversight"
+          check_doc "performance-metrics.yaml" "IV.5" "Performance Metrics"
+          check_doc "logging-spec.yaml" "IV.6" "Logging Spec"
+          check_doc "user-instructions.md" "IV.7" "User Instructions"
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$PASS" = false ]; then
+            echo "❌ **Technical compliance check FAILED**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "✅ **Technical compliance check PASSED**" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Stage 2: Deployment Authorization Check
+  # ============================================================================
+  deployment-gate:
+    name: 🚀 Deployment Gate
+    runs-on: ubuntu-latest
+    needs: compliance-scan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🎫 Check Compliance Token
+        id: token
+        run: |
+          echo "## 🎫 Compliance Token Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          TOKEN_FILE=".annexci/compliance-token.json"
+          
+          if [ ! -f "$TOKEN_FILE" ]; then
+            echo "❌ **No compliance token found!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### What's Missing?" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "A compliance token is required for deployment. This token is issued after:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. ✅ Technical compliance scan passes (DONE)" >> $GITHUB_STEP_SUMMARY
+            echo "2. ⏳ CRO reviews and attests compliance" >> $GITHUB_STEP_SUMMARY
+            echo "3. ⏳ Law firm validates Annex IV requirements" >> $GITHUB_STEP_SUMMARY
+            echo "4. ⏳ Compliance token is generated and committed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. Go to the **CRO Portal** and attest compliance" >> $GITHUB_STEP_SUMMARY
+            echo "2. Go to the **Law Firm Portal** and approve the review" >> $GITHUB_STEP_SUMMARY
+            echo "3. Copy the generated token ID" >> $GITHUB_STEP_SUMMARY
+            echo "4. Run: \`annexci deploy <TOKEN_ID>\`" >> $GITHUB_STEP_SUMMARY
+            echo "5. Commit the token file and push" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "🛑 **DEPLOYMENT BLOCKED** - Human approval required" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          # Token exists - validate it
+          echo "### Token Details" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          TOKEN_ID=$(jq -r '.tokenId' "$TOKEN_FILE")
+          ISSUED_BY=$(jq -r '.issuedBy' "$TOKEN_FILE")
+          ISSUED_AT=$(jq -r '.issuedAt' "$TOKEN_FILE")
+          EXPIRES_AT=$(jq -r '.expiresAt' "$TOKEN_FILE")
+          MODEL_HASH=$(jq -r '.modelHash' "$TOKEN_FILE")
+          
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Token ID | \`$TOKEN_ID\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Issued By | $ISSUED_BY |" >> $GITHUB_STEP_SUMMARY
+          echo "| Issued At | $ISSUED_AT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Expires | $EXPIRES_AT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Model Hash | \`${MODEL_HASH:0:16}...\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check expiration
+          EXPIRES_TS=$(date -d "$EXPIRES_AT" +%s 2>/dev/null || echo "9999999999")
+          NOW_TS=$(date +%s)
+          
+          if [ "$EXPIRES_TS" -lt "$NOW_TS" ]; then
+            echo "❌ **Token has EXPIRED!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please obtain a new compliance token." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "✅ **Token is VALID**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "🚀 **DEPLOYMENT AUTHORIZED**" >> $GITHUB_STEP_SUMMARY
+
+      - name: 🚀 Deploy (Simulated)
+        if: success()
+        run: |
+          echo "## 🚀 Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All compliance gates passed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "In a real pipeline, this would trigger deployment to production." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment Record:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Triggered by: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_STEP_SUMMARY
